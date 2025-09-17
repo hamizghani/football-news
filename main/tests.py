@@ -1,5 +1,9 @@
 from django.test import TestCase, Client
 from .models import News
+from django.test import LiveServerTestCase
+
+from django.contrib.auth.models import User
+
 
 class MainTest(TestCase):
     def test_main_url_is_exist(self):
