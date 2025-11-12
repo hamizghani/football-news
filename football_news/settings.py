@@ -48,10 +48,13 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'main',
+    'corsheaders',
+    'authentication',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -157,3 +160,20 @@ else:
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# CORS and cookie settings for mobile emulator / cross-origin requests
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+
+# For local development we avoid forcing secure cookies (which require HTTPS).
+# In production, enable secure cookies and SameSite=None so cross-site cookies work
+# when the frontend runs on a different origin (e.g. mobile emulator).
+CSRF_COOKIE_SECURE = PRODUCTION
+SESSION_COOKIE_SECURE = PRODUCTION
+CSRF_COOKIE_SAMESITE = 'None' if PRODUCTION else 'Lax'
+SESSION_COOKIE_SAMESITE = 'None' if PRODUCTION else 'Lax'
+
+# Allow Android emulator host to access the development server
+if '10.0.2.2' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('10.0.2.2')

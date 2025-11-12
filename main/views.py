@@ -14,6 +14,9 @@ from django.http import HttpResponseRedirect, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.utils.html import strip_tags
+import requests
+import json
+from django.http import JsonResponse
 
 @login_required(login_url='/login')
 def show_main(request):
@@ -63,6 +66,25 @@ def show_xml(request):
      news_list = News.objects.all()
      xml_data = serializers.serialize("xml", news_list)
      return HttpResponse(xml_data, content_type="application/xml")
+
+def proxy_image(request):
+    """Proxy an external image URL to avoid CORS issues on the client.
+
+    Usage: /proxy-image/?url=<encoded-image-url>
+    """
+    image_url = request.GET.get('url')
+    if not image_url:
+        return HttpResponse('No URL provided', status=400)
+
+    try:
+        # Fetch image from external source
+        resp = requests.get(image_url, timeout=10)
+        resp.raise_for_status()
+
+        content_type = resp.headers.get('Content-Type', 'image/jpeg')
+        return HttpResponse(resp.content, content_type=content_type)
+    except requests.RequestException as e:
+        return HttpResponse(f'Error fetching image: {str(e)}', status=500)
 
 def show_json(request):
     news_list = News.objects.all()
@@ -150,6 +172,47 @@ def delete_news(request, id):
     news = get_object_or_404(News, pk=id)
     news.delete()
     return HttpResponseRedirect(reverse('main:show_main'))
+
+
+@csrf_exempt
+def create_news_flutter(request):
+    """Create a News entry from a Flutter app sending JSON in the request body.
+
+    Expected JSON payload:
+    {
+      "title": "...",
+      "content": "...",
+      "category": "update",
+      "thumbnail": "https://...",
+      "is_featured": true
+    }
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+        except Exception:
+            return JsonResponse({"status": "error", "message": "Invalid JSON"}, status=400)
+
+        title = strip_tags(data.get("title", ""))
+        content = strip_tags(data.get("content", ""))
+        category = data.get("category", "")
+        thumbnail = data.get("thumbnail", "")
+        is_featured = data.get("is_featured", False)
+        user = request.user if request.user.is_authenticated else None
+
+        new_news = News(
+            title=title,
+            content=content,
+            category=category,
+            thumbnail=thumbnail,
+            is_featured=is_featured,
+            user=user
+        )
+        new_news.save()
+
+        return JsonResponse({"status": "success", "id": str(new_news.id)}, status=200)
+    else:
+        return JsonResponse({"status": "error", "message": "Invalid method"}, status=405)
 
 @csrf_exempt
 @require_POST
